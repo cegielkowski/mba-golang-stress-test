@@ -48,14 +48,15 @@ func main() {
 			defer wg.Done()
 			for range requestsChan {
 				resp, err := http.Get(url)
+				mu.Lock()
 				if err != nil {
 					fmt.Println("Erro ao realizar request:", err)
-					continue
+					statusCodes[0]++ // Contar os erros como status code 0
+				} else {
+					statusCodes[resp.StatusCode]++
+					resp.Body.Close()
 				}
-				mu.Lock()
-				statusCodes[resp.StatusCode]++
 				mu.Unlock()
-				resp.Body.Close()
 			}
 		}()
 	}
@@ -65,6 +66,9 @@ func main() {
 
 	fmt.Printf("\nTeste de carga concluído em %s\n", elapsed)
 	fmt.Printf("Total de requests: %d\n", requests)
+
+	mu.Lock()
+	defer mu.Unlock()
 	fmt.Printf("Status HTTP 200: %d\n", statusCodes[http.StatusOK])
 
 	for code, count := range statusCodes {
